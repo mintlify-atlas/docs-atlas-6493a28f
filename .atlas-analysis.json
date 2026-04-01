@@ -1,0 +1,104 @@
+{
+  "projectType": "saas",
+  "projectName": "Salesianos FC",
+  "projectDescription": "A full-stack web application for managing an amateur football club — covering players, matches, tournaments, treasury, and convocations.",
+  "theme": "almond",
+  "primaryColor": "#006600",
+  "lightColor": "#e6f2e6",
+  "darkColor": "#004d00",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guide",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/dashboard",
+              "features/players",
+              "features/matches",
+              "features/tournaments",
+              "features/series",
+              "features/rivals"
+            ]
+          },
+          {
+            "group": "Treasury",
+            "pages": [
+              "treasury/overview",
+              "treasury/payments",
+              "treasury/fee-rules"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "admin/users-roles",
+              "admin/branding",
+              "admin/audit-log"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/environment-variables"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Role-based access control (admin, delegado, tesorero, jugador)",
+    "Player management with field-position visualization and avatar upload",
+    "Match scheduling with convocation system and public confirmation links",
+    "Tournament management with multi-series roster selection and Mapbox location picker",
+    "Treasury module: fee rules, payment validation workflow, and Excel export",
+    "Dynamic branding (primary color and logo configurable by admin)",
+    "Dashboard with KPIs, upcoming matches, treasury summary, and birthday reminders",
+    "Audit log for all admin actions",
+    "PWA install prompt and dark mode support"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/login",
+    "POST /api/auth/logout",
+    "POST /api/auth/refresh",
+    "GET /api/auth/me",
+    "GET /api/players",
+    "POST /api/players",
+    "PATCH /api/players/:id",
+    "POST /api/players/:id/avatar",
+    "POST /api/players/import/excel",
+    "GET /api/series",
+    "POST /api/series",
+    "PATCH /api/series/:id",
+    "GET /api/tournaments",
+    "POST /api/tournaments",
+    "PATCH /api/tournaments/:id",
+    "GET /api/matches",
+    "POST /api/matches",
+    "PATCH /api/matches/:id",
+    "GET /api/matches/:id/convocation",
+    "GET /api/convocations/:id/status",
+    "GET /api/rivals",
+    "POST /api/rivals",
+    "GET /api/payments",
+    "POST /api/payments/self-register",
+    "POST /api/payments/:id/receipt",
+    "GET /api/fees/status",
+    "GET /api/fees/summary-by-period",
+    "GET /api/fees/player-fee-by-rut",
+    "GET /api/users",
+    "POST /api/users",
+    "GET /api/audit-logs"
+  ]
+}

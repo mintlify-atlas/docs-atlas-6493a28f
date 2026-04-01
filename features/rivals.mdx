@@ -1,0 +1,103 @@
+---
+title: "Rivals"
+description: "Manage opposing teams (rivals) used when creating match fixtures."
+---
+
+Rivals represent the opposing teams that Salesianos FC plays against. When you create a match, you select the opponent from the rivals list filtered by the match's series. Keeping rivals up to date ensures the opponent dropdown stays clean and relevant.
+
+## Rivals grid
+
+The page displays rivals as cards in a responsive grid. Each card shows:
+
+- Rival name and optional short code
+- Series badges for all series the rival participates in
+- Active/inactive status
+- Active toggle switch (admin only)
+- Edit button (admin only, visible on hover)
+
+### Filtering
+
+Use the **Series** dropdown in the toolbar to filter rivals by series. Only rivals that include the selected `series_id` in their `series_ids` array are shown.
+
+---
+
+## Rival data fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `name` | string | Required. The team name shown in the opponent dropdown. |
+| `code` | string \| null | Optional short identifier (e.g. `ABC`). Shown in parentheses. |
+| `series_ids` | string[] | Series this rival participates in. Used to filter the opponent dropdown in match creation. |
+| `active` | boolean | Only active rivals appear in the match creation dropdown. |
+| `notes` | string \| null | Optional free-text notes about the rival. |
+
+---
+
+## Creating a rival
+
+<Steps>
+  <Step title="Open the create modal">
+    Click **Nuevo rival**. Only admin users see this button.
+  </Step>
+  <Step title="Enter name">
+    **Nombre** is required. This is the value that appears in the **Rival** dropdown when creating a match.
+  </Step>
+  <Step title="Enter code (optional)">
+    A short code such as `ABC` is optional and appears in parentheses next to the name in the dropdown.
+  </Step>
+  <Step title="Select series">
+    Check one or more series that this rival plays in. The rival will only appear in the match creation **Rival** dropdown when the selected series matches one of the rival's `series_ids`.
+  </Step>
+  <Step title="Add notes (optional)">
+    Free-text notes about the rival (e.g. contact information, ground details).
+  </Step>
+  <Step title="Save">
+    Click **Crear**. The rival is created via `POST /api/rivals`.
+  </Step>
+</Steps>
+
+<Note>
+  If no series are selected for a rival, it will not appear in any match creation dropdown because the dropdown filters by `series_id`. Always assign at least one series.
+</Note>
+
+---
+
+## How rivals appear in match creation
+
+When creating or editing a match, the **Rival** field is a dropdown that shows rivals filtered to those with `active = true` whose `series_ids` includes the match's selected `series_id`. You must select a series first — the dropdown is disabled until a series is chosen.
+
+If you edit an existing match and the saved opponent is no longer in the filtered list (e.g. the rival was deactivated or its series assignment changed), the form appends an extra option labelled `{opponent} (fuera de lista)` so the existing value is still visible.
+
+---
+
+## Active/inactive toggle
+
+The toggle on each rival card immediately calls `PATCH /api/rivals/:id` with `{ active: true/false }`. Inactive rivals:
+
+- Do not appear in the match creation **Rival** dropdown
+- Still appear on the Rivals page with an inactive label
+- Retain their historical match associations
+
+---
+
+## Roles
+
+| Action | admin | delegado | tesorero | jugador |
+|--------|-------|----------|----------|---------|
+| View rivals | ✓ | ✓ | ✓ | ✓ |
+| Create / edit rivals | ✓ | — | — | — |
+| Toggle active | ✓ | — | — | — |
+
+<Note>
+  The source code sets `canAdmin = me?.role === 'admin'` for rivals. Unlike matches and tournaments where delegados can also create and edit, rival management is restricted to admin only.
+</Note>
+
+---
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/rivals` | List rivals (supports `series_id` query param) |
+| `POST` | `/api/rivals` | Create a rival |
+| `PATCH` | `/api/rivals/:id` | Update a rival (includes active toggle) |

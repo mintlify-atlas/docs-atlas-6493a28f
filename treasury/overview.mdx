@@ -1,0 +1,95 @@
+---
+title: "Treasury overview"
+description: "Monitor club finances, track fee collection, and manage payments from a single module."
+---
+
+## Access
+
+The treasury module is restricted to users with the `tesorero` or `admin` role. Users with the `delegado` or `jugador` role cannot access it. The page returns nothing if the current user's role is neither `tesorero` nor `admin`.
+
+<Note>
+  Any authenticated user — regardless of role — can self-register a payment from the **Dashboard** page. The treasury module is where the tesorero reviews and validates those submissions.
+</Note>
+
+## Module tabs
+
+The treasury page is divided into six tabs accessible from the tab bar at the top of the page.
+
+| Tab ID | Label | Purpose |
+|---|---|---|
+| `dashboard` | Resumen | Summary stats, period table, and collection breakdown |
+| `pending` | Pendientes | Payments awaiting validation |
+| `history` | Historial | Full payment history with filters |
+| `status` | Estados | Fee status card per player (`al_dia`, `pendiente`, `atrasado`) |
+| `matrix` | Períodos | Month-by-month payment matrix per player |
+| `rules` | Reglas | Fee rule management |
+
+You can deep-link to any tab by appending `?tab=<tab_id>` to the treasury URL.
+
+<Note>
+  The **Registrar pago** button in the page header opens a direct payment registration modal (for tesorero and admin users to register payments by player ID). This is separate from the player self-service flow on the dashboard.
+</Note>
+
+## Key metrics
+
+The **Resumen** tab shows four summary stat cards. The totals come from `GET /api/fees/dashboard-totals`, which accepts optional `series_id` and `tournament_id` filters from the page header.
+
+| Metric | Description |
+|---|---|
+| **Recaudado** | Sum of all validated payments |
+| **Pendiente** | Sum of all outstanding charges up to the current month |
+| **Tasa de cobranza** | Recaudado ÷ (Recaudado + Pendiente), shown as a percentage |
+| **Morosos** | Number of players who have not paid in the latest period |
+
+Below the stat cards, the **Resumen por período** table (from `GET /api/fees/dashboard-periods`) shows one row per month with: period label, status (`al_dia` or `pendiente`), total collected, total pending, and the fraction of players who have paid (`players_paid / players_total`).
+
+The right column displays three breakdown panels:
+
+- **Recaudación por serie** — collected and pending amounts per series
+- **Recaudación por torneo** — collected, expected, and pending amounts per tournament, with a link to view unpaid periods per player
+- **Recaudación por jugador** — total contributed per player (top 15 shown)
+
+All panels respond to the **Torneo** and **Serie** filter selectors in the page header.
+
+## Fee status per player
+
+The **Estados** tab shows a card per player coloured by their current status:
+
+| Status code | Label | Card accent |
+|---|---|---|
+| `al_dia` | Al día | Green left border |
+| `pendiente` | Pendiente | Amber left border |
+| `atrasado` | Atrasado | Rose left border |
+
+Each card displays the player's applied fee amount, fee source (general / serie / jugador), total pending debt, number of pending months, credit balance, and total contributed. When a tournament filter is active, tesorero/admin users can toggle a debt block on players with outstanding tournament debt.
+
+## Dashboard treasury KPIs
+
+The **Dashboard** page (separate from the treasury module) also surfaces treasury information for `tesorero` and `admin` users. It fetches:
+
+- `GET /api/fees/summary-by-period` — total collected, total pending, and collection by series (note: the treasury module's **Resumen** tab uses the separate `/api/fees/dashboard-totals` and `/api/fees/dashboard-breakdown` endpoints instead)
+- `GET /api/fees/status` — per-player fee status used to build the fee status breakdown and top-debtors list
+- `GET /api/payments?status=pending_validation&limit=500` — count of payments awaiting validation
+
+The dashboard highlights the collection rate, debtors count, and a debtor list sorted by pending amount.
+
+## API endpoints
+
+| Method | Endpoint | Used for |
+|---|---|---|
+| `GET` | `/api/fees/dashboard-totals` | Recaudado / Pendiente stat cards (Resumen tab) |
+| `GET` | `/api/fees/dashboard-periods` | Resumen por período table (Resumen tab) |
+| `GET` | `/api/fees/dashboard-breakdown` | Collection by series / tournament / player (Resumen tab) |
+| `GET` | `/api/fees/status` | Per-player fee status (Estados tab and main dashboard) |
+| `GET` | `/api/fees/summary-by-period` | Aggregated treasury totals used by the **main dashboard** KPIs |
+| `GET` | `/api/payments` | Payment list (Pendientes and Historial tabs) |
+| `GET` | `/api/fees/rules` | Fee rule list (Reglas tab) |
+
+<CardGroup cols={2}>
+  <Card title="Payments" icon="credit-card" href="/treasury/payments">
+    Payment lifecycle, self-registration, receipt upload, and the validation workflow.
+  </Card>
+  <Card title="Fee rules" icon="scale" href="/treasury/fee-rules">
+    How to define monthly fee amounts per tournament, series, or individual player.
+  </Card>
+</CardGroup>

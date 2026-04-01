@@ -1,0 +1,72 @@
+---
+title: "Introduction"
+description: "Salesianos FC is a web application for managing every aspect of an amateur football club — players, matches, tournaments, treasury, and administration in one place."
+---
+
+Salesianos FC is built for the people who run amateur football clubs: coaches, delegates, treasurers, and the players themselves. Instead of juggling spreadsheets and group chats, the app gives each role a focused interface for the work they actually do — from scheduling matches and sending convocations to validating fee payments and exporting financial reports.
+
+<Note>
+  Salesianos FC is a frontend-only project. It requires a running instance of [salesianos_backend](https://github.com/NoahSPA/salesianos_backend) to function. Set `VITE_API_BASE` in your `.env` file to point at that backend before you log in.
+</Note>
+
+## Modules
+
+The app is organised into five main modules.
+
+| Module | What it covers |
+|--------|----------------|
+| **Players** | Squad roster, positions, photos, series assignments, and player profiles |
+| **Matches** | Match scheduling, convocation management, lineup tracking, and results |
+| **Tournaments** | Tournament creation with multi-series rosters, rivals, and location maps |
+| **Treasury** | Fee rules, payment validation, payment status per player, and Excel report exports |
+| **Admin** | User accounts, role assignment, club branding, and audit log |
+
+## Role system
+
+Every user account has exactly one role. The role determines which pages and actions are available throughout the app.
+
+The four roles are defined as the `Role` type in `src/app/auth.tsx`:
+
+```typescript
+export type Role = 'admin' | 'delegado' | 'tesorero' | 'jugador'
+```
+
+| Role | Capabilities |
+|------|-------------|
+| **admin** | Full access — all modules, user management, branding, and audit log |
+| **delegado** | Create and edit players, matches, tournaments, rivals, and series |
+| **tesorero** | Manage treasury: validate payments, define fee rules, export reports |
+| **jugador** | View own profile, see upcoming matches, register payments self-service |
+
+<Note>
+  All protected routes require an active session. When a session expires, the app automatically redirects you to the login page.
+</Note>
+
+## Tech stack
+
+| Technology | Version | Role |
+|------------|---------|------|
+| React | 19 | UI framework |
+| TypeScript | ~5.9 | Type safety across the entire codebase |
+| Vite | 7 | Development server and production bundler |
+| TailwindCSS | 4 | Utility-first styling |
+| React Router | 7 | Client-side routing |
+| Mapbox GL | 3 | Interactive location picker in tournaments |
+| ExcelJS | 4 | Treasury report generation and export |
+
+## Explore the docs
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Clone the repo, configure your environment, and run the app in minutes.
+  </Card>
+  <Card title="Players" icon="users" href="/features/players">
+    Manage your squad, positions, photos, and series assignments.
+  </Card>
+  <Card title="Matches" icon="calendar" href="/features/matches">
+    Schedule matches, send convocations, and record results.
+  </Card>
+  <Card title="Treasury" icon="coins" href="/treasury/overview">
+    Define fee rules, validate payments, and export financial reports.
+  </Card>
+</CardGroup>

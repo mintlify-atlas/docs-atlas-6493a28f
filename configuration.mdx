@@ -1,0 +1,104 @@
+---
+title: "Configuration"
+description: "Environment variables, backend connectivity, and production build instructions for Salesianos FC."
+---
+
+Salesianos FC is configured entirely through environment variables. All runtime settings live in a `.env` file at the root of the project. Copy `.env.example` to create your own:
+
+```bash
+cp .env.example .env
+```
+
+<Warning>
+  Never commit `.env` to version control. It may contain API tokens and backend URLs that should not be public. The repository's `.gitignore` already excludes it.
+</Warning>
+
+## Environment variables
+
+### `VITE_API_BASE`
+
+**Required.** The base URL of the [salesianos_backend](https://github.com/NoahSPA/salesianos_backend) API. Every HTTP request the app makes is prefixed with this value.
+
+```ini
+VITE_API_BASE=http://localhost:8000
+```
+
+If you omit this variable, the app falls back to `http://localhost:8000` (see `src/app/api.ts`):
+
+```typescript
+export const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
+```
+
+In production, set this to the full HTTPS URL of your deployed backend, for example `https://api.salesianos.example.com`.
+
+### `VITE_MAPBOX_TOKEN`
+
+**Optional.** A [Mapbox](https://account.mapbox.com/) public access token. Required only if you want the interactive location picker to appear when creating or editing tournaments. When omitted, the location picker is not rendered.
+
+```ini
+VITE_MAPBOX_TOKEN=pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJja...
+```
+
+## The `VITE_` prefix
+
+Vite only exposes environment variables that begin with `VITE_` to the browser bundle. Variables without this prefix are ignored at runtime. Never store secrets (private keys, passwords) in variables with this prefix — they will be visible in the compiled JavaScript.
+
+## Example `.env` file
+
+```ini .env
+# API of the backend (required)
+VITE_API_BASE=http://localhost:8000
+
+# Mapbox token for the tournament location picker (optional)
+# Obtain a token at https://account.mapbox.com/
+# VITE_MAPBOX_TOKEN=
+```
+
+## Backend health banner
+
+The app monitors backend connectivity on every API call. When a network request fails to reach the server, the `api:network-status-changed` custom event fires with `detail: false`. The `AuthProvider` in `src/app/auth.tsx` listens for this event and sets `backendAvailable` to `false`:
+
+```typescript
+useEffect(() => {
+  function onNetworkStatusChanged(event: Event) {
+    const customEvent = event as CustomEvent<boolean>
+    if (typeof customEvent.detail === 'boolean') {
+      setBackendAvailable(customEvent.detail)
+    }
+  }
+  window.addEventListener('api:network-status-changed', onNetworkStatusChanged as EventListener)
+  return () => window.removeEventListener('api:network-status-changed', onNetworkStatusChanged as EventListener)
+}, [])
+```
+
+When `backendAvailable` is `false`, the app displays a banner informing you that the backend is unreachable. It clears automatically once connectivity is restored.
+
+<Tip>
+  If you see this banner after starting the app, confirm that `VITE_API_BASE` is set correctly and that the backend process is running.
+</Tip>
+
+## Production build
+
+### Build
+
+Compile TypeScript and bundle the app with Vite:
+
+```bash
+npm run build
+```
+
+This runs `tsc -b && vite build` and outputs the bundle to the `dist/` directory.
+
+### Serve
+
+Serve the production bundle on port 8080 using the included `serve` package:
+
+```bash
+npm run start
+```
+
+This runs `serve -s dist -l 8080`, which serves the SPA with client-side routing support (`-s` flag rewrites all paths to `index.html`).
+
+<Note>
+  In production, use HTTPS and configure allowed CORS origins in the backend to match your frontend URL. Do not serve the app over plain HTTP when handling real user credentials.
+</Note>

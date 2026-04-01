@@ -1,0 +1,175 @@
+---
+title: "Matches"
+description: "Schedule and track club matches — create fixtures, manage convocations, record scores, and let players confirm attendance."
+---
+
+The Matches page lists all fixtures split into two sections: **Próximos partidos** (upcoming, sorted closest first) and **Partidos jugados** (history, sorted most recent first). Each match card links to its detail page.
+
+## Match list
+
+Each card displays:
+
+- Match date (localized), series badge, and status badge
+- Score display (e.g. `3–1`) or a **VS** placeholder if unplayed
+- Result badge: **Ganado** (green), **Perdido** (rose), or **Empate** (amber)
+- Call time, venue / field number, and tournament name
+
+An edit icon appears on hover for admin / delegado users.
+
+### Filtering
+
+Use the **Serie** dropdown in the toolbar to filter the list to a single series. The filter count ("3 de 12 partidos") updates automatically.
+
+---
+
+## Match data fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `tournament_id` | string | Required. Must be an active tournament. |
+| `series_id` | string | Required. Must be an active series. |
+| `opponent` | string | Name of the opposing team. Populated from the rivals dropdown filtered by series. |
+| `match_date` | string (`YYYY-MM-DD`) | Required. |
+| `call_time` | string (`HH:MM`) | Required. Defaults to `10:00`. |
+| `venue` | string | Location name. |
+| `field_number` | string \| null | Optional field/pitch number. |
+| `status` | object | `{ code, label, color_hex }`. See [match statuses](#match-statuses) below. |
+| `notes` | string \| null | Free-text notes. |
+| `our_goals` | number \| null | Set when status is `jugado`. |
+| `opponent_goals` | number \| null | Set when status is `jugado`. |
+
+### Match statuses
+
+Match statuses are loaded dynamically from `GET /api/match-statuses`. Each status has a `code`, a `label`, and a `color_hex` used to style the badge. The default status when creating a match is `programado`.
+
+<Note>
+  The rival dropdown is filtered by the selected series. You must choose a series before the opponent list populates. The dropdown shows only rivals with `active = true` that include the chosen `series_id` in their `series_ids` array.
+</Note>
+
+---
+
+## Creating a match
+
+<Steps>
+  <Step title="Open the create modal">
+    Click **Nuevo partido**. Only admin and delegado users see this button.
+  </Step>
+  <Step title="Select series and tournament">
+    Both fields are required. Only active series and active tournaments appear in the dropdowns.
+  </Step>
+  <Step title="Select rival">
+    Choose the opposing team from the **Rival** dropdown. The list filters to rivals assigned to the selected series.
+  </Step>
+  <Step title="Set date, call time, and field">
+    Enter the match date, call time, and an optional field number.
+  </Step>
+  <Step title="Set status">
+    Choose a status. The default is **Programado**.
+  </Step>
+  <Step title="Save">
+    Click **Crear**. The match is created via `POST /api/matches`.
+  </Step>
+</Steps>
+
+### Recording a score
+
+When editing a match with status `jugado`, a score entry section appears. Enter **Nuestros goles** and **Goles rival**. A live result badge (Ganado / Perdido / Empate) updates as you type. The score is saved alongside the status change.
+
+---
+
+## Match detail page
+
+Click any match card to open its detail page at `/matches/:id`.
+
+The detail page shows:
+
+- Calendar tile (day abbreviation, day number, month abbreviation)
+- Series badge, opponent name, call time, venue, and tournament
+- Score / result badge (if played)
+
+### Convocation management (admin / delegado)
+
+The detail page includes a **Convocatoria** panel.
+
+<Steps>
+  <Step title="Create or update convocation">
+    Click **Crear convocatoria** (or **Actualizar convocatoria** if one already exists). The app invites all players in the match's series by posting their IDs to `POST /api/matches/:id/convocation`.
+  </Step>
+  <Step title="Copy or share the link">
+    After creation, a public confirmation link appears in the format `/c/:publicLinkId`. Use **Copiar link** to copy it to the clipboard, or click **WhatsApp** to open a pre-formatted WhatsApp message that includes match details, the link, and the current confirmed / declined / pending lists.
+  </Step>
+  <Step title="Monitor responses">
+    The **Confirmaciones** section below the convocation panel shows three columns — Confirmados, Pendientes, and No pueden — updated automatically every 5 seconds. Each column lists player names and optional comments.
+  </Step>
+  <Step title="Send reminders">
+    If any pending players have a phone number, a **Enviar recordatorio por WhatsApp** button appears. Clicking it opens a modal with per-player WhatsApp links pre-filled with a personalised reminder message.
+  </Step>
+</Steps>
+
+<Note>
+  Once a match status is set to `jugado`, the convocation cannot be created or updated. Responses already recorded are still visible.
+</Note>
+
+### Score recording (admin / delegado)
+
+When the match status is `jugado`, the detail page shows a **Resultado del encuentro** panel alongside the convocation panel. Enter goals and click **Guardar resultado** to save via `PATCH /api/matches/:id`.
+
+---
+
+## Public confirmation page
+
+Players confirm attendance via a public link at `/c/:publicLinkId`. The page requires no login.
+
+<Steps>
+  <Step title="Load match info">
+    The page fetches match details from `GET /api/public/convocations/:publicLinkId`. It shows series name, opponent, date, call time, venue, and tournament.
+  </Step>
+  <Step title="Enter RUT">
+    The player enters their RUT to verify identity.
+  </Step>
+  <Step title="Select response">
+    Choose **Confirmo** or **No puedo**.
+  </Step>
+  <Step title="Add comment (optional)">
+    An optional comment of up to 300 characters can be added.
+  </Step>
+  <Step title="Submit">
+    Click **Enviar**. The response is posted to `POST /api/public/convocations/:publicLinkId/respond`.
+  </Step>
+</Steps>
+
+<Warning>
+  If a player has an outstanding fee block in the tournament, confirming returns a `403` error with the message:
+
+  > No puedes confirmar: tienes bloqueo por deuda en este campeonato. Contacta a tesorería.
+
+  The page renders this message in a distinct red alert box.
+</Warning>
+
+---
+
+## Roles
+
+| Action | admin | delegado | tesorero | jugador |
+|--------|-------|----------|----------|---------|
+| View match list and detail | ✓ | ✓ | ✓ | ✓ |
+| Create / edit matches | ✓ | ✓ | — | — |
+| Create / update convocation | ✓ | ✓ | — | — |
+| Record score | ✓ | ✓ | — | — |
+| Confirm attendance (public link) | — | — | — | ✓ (any authenticated RUT) |
+
+---
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/matches` | List all matches |
+| `POST` | `/api/matches` | Create a match |
+| `PATCH` | `/api/matches/:id` | Update a match (including score) |
+| `GET` | `/api/match-statuses` | Available match statuses |
+| `GET` | `/api/matches/:id/convocation` | Get or check convocation for a match |
+| `POST` | `/api/matches/:id/convocation` | Create or update convocation |
+| `GET` | `/api/convocations/:id/status` | Convocation response summary and lines |
+| `GET` | `/api/public/convocations/:publicLinkId` | Public match info (no auth) |
+| `POST` | `/api/public/convocations/:publicLinkId/respond` | Submit attendance response (no auth) |

@@ -1,0 +1,176 @@
+---
+title: "Audit log"
+description: "Track every significant admin and treasury action with timestamps, actors, and affected entities."
+---
+
+The **Audit log** (`/admin/audit`) records every significant action taken in Salesianos FC. Use it to investigate changes, verify who did what, and when. Only users with the `admin` role can access this page.
+
+## What the audit log tracks
+
+The audit log captures actions across all major areas of the app: user management, treasury, players, matches, series, rivals, tournaments, and convocations. Every entry records the actor, their role, the affected entity, and the exact timestamp.
+
+## Log entry fields
+
+Each entry in the audit log has the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (UUID) | Unique identifier for the log entry. |
+| `action` | string | The action code (see full list below). |
+| `entity_type` | string | The type of entity affected (e.g., `player`, `payment`, `user`). |
+| `entity_id` | string | The ID of the specific entity that was affected. |
+| `actor_user_id` | string \| null | The user ID of the person who performed the action. |
+| `actor_role` | string \| null | The role of the actor at the time of the action. |
+| `actor_username` | string \| null | The username of the actor. |
+| `created_at` | ISO 8601 datetime | When the action occurred. |
+
+## Tracked actions
+
+<AccordionGroup>
+  <Accordion title="Payments">
+
+| Action code | Description |
+|---|---|
+| `payment_created` | A payment was registered. |
+| `payment_validated` | A payment was validated (approved). |
+| `payment_rejected` | A payment was rejected. |
+| `payment_reversed` | A previously validated payment was reversed. |
+
+  </Accordion>
+  <Accordion title="Fee rules and generation">
+
+| Action code | Description |
+|---|---|
+| `fee_rule_created` | A fee rule was created. |
+| `fee_rule_updated` | A fee rule was updated. |
+| `fee_rule_deleted` | A fee rule was deleted. |
+| `fees_generated_month` | Monthly fees were generated for all active players. |
+
+  </Accordion>
+  <Accordion title="Players">
+
+| Action code | Description |
+|---|---|
+| `player_created` | A player was created manually. |
+| `player_updated` | A player's data was updated manually. |
+| `player_created_csv` | A player was created via CSV import. |
+| `player_updated_csv` | A player was updated via CSV import. |
+| `player_created_excel` | A player was created via Excel import. |
+| `player_updated_excel` | A player was updated via Excel import. |
+
+  </Accordion>
+  <Accordion title="Matches and series">
+
+| Action code | Description |
+|---|---|
+| `match_created` | A match was created. |
+| `match_updated` | A match was updated. |
+| `series_created` | A series was created. |
+| `series_updated` | A series was updated. |
+
+  </Accordion>
+  <Accordion title="Rivals and tournaments">
+
+| Action code | Description |
+|---|---|
+| `rival_created` | A rival club was created. |
+| `rival_updated` | A rival club was updated. |
+| `tournament_created` | A tournament was created. |
+| `tournament_updated` | A tournament was updated. |
+
+  </Accordion>
+  <Accordion title="Users">
+
+| Action code | Description |
+|---|---|
+| `user_created` | A user account was created. |
+| `user_updated` | A user account was updated. |
+| `user_password_changed` | A user's password was changed by an admin. |
+| `user_role_changed` | A user's role was changed. |
+
+  </Accordion>
+  <Accordion title="Authentication">
+
+| Action code | Description |
+|---|---|
+| `login` | A successful login. |
+| `login_failed` | A failed login attempt. |
+
+  </Accordion>
+  <Accordion title="Convocations">
+
+| Action code | Description |
+|---|---|
+| `convocation_created` | A match convocation was created. |
+| `convocation_updated` | A match convocation was updated. |
+| `convocation_deleted` | A match convocation was deleted. |
+
+  </Accordion>
+</AccordionGroup>
+
+## Filtering by date range
+
+By default the log loads up to 200 entries, sorted by most recent first. Use the date range filter to narrow results:
+
+1. Set a **Desde** (from) date and/or a **Hasta** (to) date using the date pickers at the top of the log.
+2. Click **Aplicar** to reload the log with the filter applied.
+3. To remove the filter and show all recent entries, click **Quitar filtro de fechas**.
+
+<Tip>
+When investigating a specific incident, set both **Desde** and **Hasta** to the same date to see only the actions from that day.
+</Tip>
+
+<Note>
+The current implementation loads up to 200 entries per request. If you need to review a high-volume period, narrow the date range to avoid truncated results.
+</Note>
+
+## Reading the log table
+
+The log table shows the following columns:
+
+| Column | Source field | Notes |
+|---|---|---|
+| **Fecha y hora** | `created_at` | Displayed in `DD/MM/YYYY HH:mm` format. |
+| **Acción** | `action` | Human-readable label derived from the action code. |
+| **Tipo de entidad** | `entity_type` | The category of data affected. |
+| **ID** | `entity_id` | Truncated to 20 characters in the UI. Hover to see the full ID. |
+| **Usuario** | `actor_username` | The username of the person who performed the action. `—` if not available. |
+| **Rol** | `actor_role` | The role of the actor at the time of the action. `—` if not available. |
+
+## API endpoint
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/audit` | Retrieve audit log entries. |
+
+### Query parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `limit` | integer | Maximum number of entries to return. The UI sends `200`. |
+| `date_from` | date string (`YYYY-MM-DD`) | Filter to entries on or after this date. |
+| `date_to` | date string (`YYYY-MM-DD`) | Filter to entries on or before this date. |
+
+### Example request
+
+```http
+GET /api/audit?limit=200&date_from=2025-01-01&date_to=2025-01-31
+Authorization: Bearer <token>
+```
+
+### Example response
+
+```json
+[
+  {
+    "id": "a1b2c3d4-...",
+    "action": "payment_validated",
+    "entity_type": "payment",
+    "entity_id": "f7e6d5c4-...",
+    "actor_user_id": "1234abcd-...",
+    "actor_role": "tesorero",
+    "actor_username": "maria",
+    "created_at": "2025-01-15T10:23:45.000Z"
+  }
+]
+```

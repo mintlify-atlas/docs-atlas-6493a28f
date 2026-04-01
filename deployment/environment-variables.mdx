@@ -1,0 +1,111 @@
+---
+title: "Environment variables"
+description: "Reference for all VITE_ environment variables used by the Salesianos FC frontend, and how to configure them for development and production."
+---
+
+The frontend uses two environment variables. Both follow Vite's `VITE_` naming convention, which makes them accessible in client-side code via `import.meta.env`.
+
+---
+
+## Variable reference
+
+| Variable | Required | Type | Default | Description |
+|---|---|---|---|---|
+| `VITE_API_BASE` | Yes | `string` (URL) | `http://localhost:8000` | Base URL of the backend REST API. All API requests are prefixed with this value. |
+| `VITE_MAPBOX_TOKEN` | No | `string` | — | Mapbox public access token. Required only if you use the location picker in the tournaments feature. |
+
+---
+
+## The `VITE_` prefix
+
+Vite deliberately restricts which environment variables are available to your client-side JavaScript bundle. Only variables whose names begin with **`VITE_`** are exposed through `import.meta.env`. All other variables in the process environment are stripped at build time and never included in the bundle.
+
+<Note>
+This is a security safeguard. Variables without the `VITE_` prefix — such as database passwords or server-side secrets — remain invisible to the browser even if they are set in the same environment.
+</Note>
+
+At build time, Vite performs a static replacement: every occurrence of `import.meta.env.VITE_API_BASE` in the source code is replaced with the literal string value of that variable. The final bundle contains no references to `import.meta.env`.
+
+---
+
+## Build-time vs runtime
+
+<Warning>
+`VITE_` variables are **embedded at build time**, not read at runtime. Once the application is compiled, the values are baked into the JavaScript bundle. To use a different API URL or Mapbox token, you must **rebuild the application** with the new values. Simply restarting the container or server has no effect.
+</Warning>
+
+This means:
+
+- For the **Docker image**, pass variables as `--build-arg` values or via the `args:` block in `docker-compose.yml`. See [Docker deployment](/deployment/docker) for the full workflow.
+- For **PaaS platforms** (Railway, Dokploy), set variables in the environment panel before triggering a build.
+- For **local development**, copy `.env.example` to `.env` and edit the values. Vite loads `.env` automatically when you run `npm run dev`.
+
+---
+
+## `.env.example`
+
+The repository includes a `.env.example` file that documents all supported variables:
+
+```env
+# API del backend
+VITE_API_BASE=http://localhost:8000
+
+# Mapbox (opcional, para selector de ubicación en torneos)
+# Obtener token en https://account.mapbox.com/
+# VITE_MAPBOX_TOKEN=
+```
+
+---
+
+## Development setup
+
+<Steps>
+  <Step title="Copy the example file">
+    ```bash
+    cp .env.example .env
+    ```
+  </Step>
+
+  <Step title="Edit the values">
+    Open `.env` and set `VITE_API_BASE` to the URL of your local backend. If you are working on the tournaments location picker, uncomment `VITE_MAPBOX_TOKEN` and add your token.
+
+    ```env
+    VITE_API_BASE=http://localhost:8000
+    VITE_MAPBOX_TOKEN=pk.your_token_here
+    ```
+  </Step>
+
+  <Step title="Start the dev server">
+    ```bash
+    npm run dev
+    ```
+
+    Vite loads `.env` automatically. Changes to `.env` require a server restart.
+  </Step>
+</Steps>
+
+<Tip>
+You can use a `.env.local` file to override values for your specific machine without affecting the shared `.env` file. Vite loads `.env.local` with higher priority than `.env`, and it is already listed in `.gitignore` by default.
+</Tip>
+
+---
+
+## Production configuration
+
+<Warning>
+Do not commit `.env` files to the repository. They may contain tokens or API URLs that should not be public. Add `.env` and `.env.local` to `.gitignore`.
+</Warning>
+
+In production, set environment variables through your **hosting platform's configuration** rather than a `.env` file:
+
+| Platform | Where to set variables |
+|---|---|
+| Docker Compose | `args:` block in `docker-compose.yml`, or a `.env` file that is not committed |
+| Railway | **Settings → Variables** |
+| Dokploy | **Environment** tab of the service |
+| Netlify | **Site settings → Environment variables** |
+| Vercel | **Project settings → Environment variables** |
+
+<Note>
+`VITE_MAPBOX_TOKEN` is a **public** token — Mapbox access tokens that start with `pk.` are designed to be used in browser code. However, restrict your token in the Mapbox dashboard by allowed URL origins to prevent unauthorized usage from other domains.
+</Note>

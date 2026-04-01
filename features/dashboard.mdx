@@ -1,0 +1,140 @@
+---
+title: "Dashboard"
+description: "Overview of the dashboard — your real-time summary of the club's players, matches, treasury, and convocation status."
+---
+
+The dashboard is the first page you see after logging in. It shows a time-sensitive greeting, a set of KPI cards, and several widgets that adapt based on your role.
+
+<Note>
+  The content shown on the dashboard varies by role. Treasury analytics and the top-debtors table are only visible to users with the **admin** or **tesorero** role.
+</Note>
+
+## KPI cards
+
+Four summary cards appear at the top of the page. The cards shown depend on your role.
+
+**All roles:**
+
+| Card | Description |
+|------|-------------|
+| **Jugadores activos** | Total number of active players. Links to `/players`. |
+| **Próximos partidos** | Count of matches from today onwards. Links to `/matches`. |
+
+**admin / tesorero only — replaces the two cards below:**
+
+| Card | Description |
+|------|-------------|
+| **Recaudación total** | Total collected fees across all periods (`total_collected`). Links to `/treasury`. |
+| **Pagos por validar** | Count of payments with `status = pending_validation`. Links to `/treasury?tab=pending`. |
+
+**jugador / delegado (non-treasury roles):**
+
+| Card | Description |
+|------|-------------|
+| **Series activas** | Count of series where `active = true`. Links to `/series`. |
+| **Torneos activos** | Count of tournaments where `active = true`. Links to `/tournaments`. |
+
+---
+
+## Treasury analytics (admin / tesorero only)
+
+Below the KPI cards, admin and tesorero users see a treasury analytics section.
+
+### Summary panels
+
+Three values display collected, pending, and payments pending validation:
+
+- **Recaudado** — `total_collected` from `/api/fees/summary-by-period`
+- **Pendiente** — `total_pending` from the same endpoint
+- **Por validar** — count of payments at `status = pending_validation`
+
+A **Recaudación por serie** panel breaks the collected and pending amounts down per series, including a stacked progress bar (green = collected, amber = pending).
+
+If the role is **tesorero**, an additional **Estado de cuotas** panel shows players grouped into three statuses:
+
+| Status code | Label | Color |
+|-------------|-------|-------|
+| `al_dia` | Al día | Green |
+| `pendiente` | Pendiente | Amber |
+| `atrasado` | Atrasado | Rose |
+
+### Analytics metrics row
+
+Four metric cards provide deeper collection analysis (admin / tesorero only):
+
+| Metric | Calculation |
+|--------|-------------|
+| **Eficiencia de cobranza** | `total_collected / (total_collected + total_pending) × 100`. Shown in green ≥ 90 %, amber ≥ 75 %, rose below 75 %. |
+| **Mora severa (3+ meses)** | Count of players with `pending_months_count ≥ 3` or `status = atrasado`. Shows total exposure amount. |
+| **Deuda promedio por moroso** | `total_pending / (pendiente + atrasado players)`. |
+| **Concentración deuda (Top 10)** | Percentage of total pending debt held by the top-10 debtors. |
+
+### Top debtors table
+
+The **Top morosos** table lists up to 10 players sorted by `total_pending` (descending), then by `pending_months_count`. Columns: player name, months pending, status badge, and amount pending.
+
+---
+
+## Upcoming matches and convocation cards
+
+The dashboard fetches all matches from today onwards and groups the first upcoming match per active series. For each series that has an upcoming match it attempts to load the convocation and its status, then renders a summary card showing:
+
+- Series name and badge
+- Match date, opponent, call time, and venue
+- Convocation response counts: confirmed, declined, and pending
+
+If no convocation exists for that match, the card shows an informational notice.
+
+---
+
+## Birthday widget
+
+The dashboard shows a list of active players whose `birth_date` falls in the current calendar month, sorted by day. Each entry shows the player's avatar (or initials), full name, and day of birth.
+
+---
+
+## Self-service payment registration (jugador / delegado)
+
+Users without treasury access see a **Registrar pago** button in the page header. Clicking it opens a modal that lets a player submit a payment for validation.
+
+<Steps>
+  <Step title="Select tournament">
+    Choose an active tournament from the dropdown.
+  </Step>
+  <Step title="Enter RUT">
+    Type the payer's RUT. The form formats it automatically and validates the check digit. Once a tournament and RUT are entered, the app fetches the applicable monthly fee via `GET /api/fees/player-fee-by-rut` and pre-fills the amount.
+  </Step>
+  <Step title="Set period and amount">
+    Confirm the target month (`YYYY-MM`) and the amount in CLP. The amount is pre-filled from the fee rule but can be edited.
+  </Step>
+  <Step title="Add reference and receipt (optional)">
+    Enter a reference number or transaction ID and optionally attach a receipt image.
+  </Step>
+  <Step title="Submit">
+    Click **Registrar**. The payment is created via `POST /api/payments/self-register` with `status = pending_validation`. If a receipt file was attached it is uploaded separately to `POST /api/payments/:id/receipt`. The tesorero reviews and validates it later.
+  </Step>
+</Steps>
+
+<Warning>
+  Submitted payments are not immediately applied. They remain in **pending validation** status until a tesorero approves them.
+</Warning>
+
+---
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/matches?from_date=YYYY-MM-DD` | Upcoming matches from today |
+| `GET` | `/api/matches` | All matches (used for last-played-by-series calculation) |
+| `GET` | `/api/series` | All series |
+| `GET` | `/api/tournaments` | All tournaments |
+| `GET` | `/api/players?active=true` | Active players (birthday widget, convocation cards) |
+| `GET` | `/api/fees/status?active=true` | Per-player fee status |
+| `GET` | `/api/fees/summary-by-period` | Aggregated treasury totals (admin / tesorero) |
+| `GET` | `/api/payments?status=pending_validation&limit=500` | Payments awaiting validation (admin / tesorero) |
+| `GET` | `/api/matches/:id/convocation` | Convocation for a match |
+| `GET` | `/api/convocations/:id/status` | Convocation response counts and lines |
+| `GET` | `/api/fees/player-fee-by-rut` | Fee suggestion for self-registration modal |
+| `POST` | `/api/payments/self-register` | Submit a self-service payment |
+| `POST` | `/api/payments/:id/receipt` | Upload receipt file |

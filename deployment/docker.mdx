@@ -1,0 +1,314 @@
+---
+title: "Docker deployment"
+description: "Build and run the Salesianos FC frontend as a Docker container using the multi-stage Dockerfile or Docker Compose."
+---
+
+The frontend ships with a **multi-stage Dockerfile** that produces a minimal nginx image, and a `docker-compose.yml` for single-host deployments. Both are located at the root of `salesianos_frontend/`.
+
+## Dockerfile
+
+```dockerfile
+# =============================================================================
+# Salesianos FC - Frontend Dockerfile
+# =============================================================================
+# Multi-stage: build Vite/React, runtime nginx para estáticos.
+# =============================================================================
+
+# --- Build layer ---
+# Bookworm (Debian/glibc) necesario para @tailwindcss/oxide (Tailwind v4) en build
+FROM node:20-bookworm-slim AS build
+
+LABEL maintainer="Salesianos FC"
+LABEL org.opencontainers.image.title="Salesianos FC Web"
+LABEL org.opencontainers.image.description="Frontend gestión equipo fútbol amateur"
+LABEL org.opencontainers.image.vendor="Noah IT"
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci && \
+    npm cache clean --force
+
+COPY . .
+
+# Variables de build Vite. Valores sensibles (ej. VITE_MAPBOX_TOKEN) pasar con --build-arg al build, no en el Dockerfile.
+ARG VITE_API_BASE=http://localhost:8000
+ARG VITE_MAPBOX_TOKEN
+ENV VITE_API_BASE=$VITE_API_BASE
+# Solo exponer token en build si se pasó por --build-arg (evita warning de secretos en imagen)
+ENV VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
+
+RUN npm run build
+
+RUN find /app/dist -name "*.map" -delete
+
+# --- Runtime layer ---
+FROM nginx:1.27-alpine AS runtime
+
+LABEL maintainer="Salesianos FC"
+LABEL org.opencontainers.image.title="Salesianos FC Web - Runtime"
+LABEL org.opencontainers.image.vendor="Noah IT"
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy built application
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY ops/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Security: Set proper permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
+
+# Expose port
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### Build stages
+
+**Stage 1 — `build` (`node:20-bookworm-slim`)**
+
+This stage compiles the application:
+
+1. Copies `package.json` and `package-lock.json` first so npm's layer cache is reused when only source files change.
+2. Runs `npm ci` with a BuildKit cache mount for `/root/.npm`, keeping the image layer clean.
+3. Accepts **build arguments** `VITE_API_BASE` and `VITE_MAPBOX_TOKEN` and promotes them to environment variables before running `npm run build` (`tsc -b && vite build`). Vite reads `import.meta.env.VITE_*` from these environment variables at compile time and embeds their values into the output bundle.
+4. Deletes all `.map` source-map files from `dist/` to reduce the final asset size.
+
+<Note>
+Node 20 on Debian Bookworm (`node:20-bookworm-slim`) is required because **@tailwindcss/oxide** (Tailwind v4's Rust extension) ships pre-built binaries that need glibc. Alpine-based Node images use musl and will fail at install time.
+</Note>
+
+**Stage 2 — `runtime` (`nginx:1.27-alpine`)**
+
+This stage produces the final image:
+
+- Copies only the compiled `dist/` output from the build stage — the Node runtime, `node_modules`, and source files are discarded.
+- Uses a custom `ops/nginx.conf` for proper SPA routing (all paths fall back to `index.html`).
+- Sets `nginx:nginx` ownership and `755` permissions on the web root.
+- Registers a **health check** that polls `http://localhost/` every 30 seconds.
+- Exposes **port 80**. The container does not handle TLS; terminate HTTPS at a reverse proxy in front of it (see [HTTPS and reverse proxy](#https-and-reverse-proxy)).
+
+---
+
+## Docker Compose
+
+```yaml
+name: salesianos-web
+
+services:
+  salesianos-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8000}
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
+    container_name: salesianos-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - salesianos-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  salesianos-network:
+    driver: bridge
+```
+
+### Services
+
+| Service | Image | Port mapping | Restart policy |
+|---|---|---|---|
+| `salesianos-web` | Built from `Dockerfile` | `8080` → `80` | `unless-stopped` |
+
+The Compose file reads `VITE_API_BASE` and `VITE_MAPBOX_TOKEN` from the shell environment (or a `.env` file in the same directory) and forwards them as **Docker build arguments**. If `VITE_API_BASE` is not set, it defaults to `http://localhost:8000`; if `VITE_MAPBOX_TOKEN` is not set, it is passed as an empty string.
+
+The `salesianos-network` bridge network is created automatically. You can attach additional services (e.g., a backend container) to the same network and reference them by container name.
+
+---
+
+## Build and run
+
+<Warning>
+`VITE_API_BASE` and `VITE_MAPBOX_TOKEN` are **build-time variables**. Vite embeds their values into the compiled JavaScript bundle. Changing them after the image is built has no effect — you must rebuild the image with the new values.
+</Warning>
+
+### Using Docker Compose (recommended)
+
+<Steps>
+  <Step title="Set environment variables">
+    Export the variables in your shell, or create a `.env` file next to `docker-compose.yml`:
+
+    ```env
+    VITE_API_BASE=https://api.salesianos.example.com
+    VITE_MAPBOX_TOKEN=pk.your_token_here
+    ```
+
+    <Warning>
+    Do not commit `.env` to the repository. Add it to `.gitignore`.
+    </Warning>
+  </Step>
+
+  <Step title="Build and start">
+    Run the following command from the `salesianos_frontend/` directory:
+
+    ```bash
+    docker compose up -d --build
+    ```
+
+    The `--build` flag forces a fresh image build. Omit it on subsequent starts if the source has not changed.
+  </Step>
+
+  <Step title="Verify the container is running">
+    ```bash
+    docker compose ps
+    docker compose logs salesianos-web
+    ```
+
+    The app is available at `http://localhost:8080`.
+  </Step>
+</Steps>
+
+### Using Docker CLI directly
+
+<Steps>
+  <Step title="Build the image">
+    Pass build arguments with `--build-arg`. Replace the values with your actual URLs and tokens:
+
+    ```bash
+    docker build \
+      --build-arg VITE_API_BASE=https://api.salesianos.example.com \
+      --build-arg VITE_MAPBOX_TOKEN=pk.your_token_here \
+      -t salesianos-web:latest .
+    ```
+  </Step>
+
+  <Step title="Run the container">
+    Map the container's port 80 to host port 8080:
+
+    ```bash
+    docker run -d \
+      --name salesianos-web \
+      --restart unless-stopped \
+      -p 8080:80 \
+      salesianos-web:latest
+    ```
+  </Step>
+
+  <Step title="Check health">
+    ```bash
+    docker inspect --format='{{.State.Health.Status}}' salesianos-web
+    ```
+
+    The status should read `healthy` within 30–40 seconds of startup.
+  </Step>
+</Steps>
+
+---
+
+## Port mapping
+
+| Host port | Container port | Protocol | Description |
+|---|---|---|---|
+| `8080` | `80` | HTTP | nginx static file server |
+
+The container serves the app on port 80 internally. Docker Compose maps this to port **8080** on the host. Adjust the left-hand side of the mapping (`"8080:80"`) in `docker-compose.yml` if you need a different host port.
+
+---
+
+## Nixpacks / PaaS deployment
+
+The repository includes a `nixpacks.toml` for platforms that use [Nixpacks](https://nixpacks.com/) as their build system — such as **Railway** or **Dokploy**.
+
+```toml
+# Node 20 (Vite 7, Tailwind v4, react-router 7 requieren >=20)
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-10_x"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+dependsOn = ["install"]
+
+# Servir estáticos en 8080 (usa script "start" de package.json)
+[start]
+cmd = "npm start"
+
+[variables]
+NODE_ENV = "production"
+```
+
+The file defines four phases:
+
+| Phase | Command | Notes |
+|---|---|---|
+| `setup` | — | Provisions Node 20 and npm 10 from the Nix package set |
+| `install` | `npm ci` | Installs exact dependency versions from `package-lock.json` |
+| `build` | `npm run build` | Runs `tsc -b && vite build`; depends on `install` |
+| `start` | `npm start` | Runs `serve -s dist -l 8080` to serve the compiled bundle |
+
+`NODE_ENV=production` is injected automatically so that Vite and React use their production code paths.
+
+<Note>
+Set `VITE_API_BASE` and `VITE_MAPBOX_TOKEN` in your platform's **environment variables panel** before triggering a build. These variables must be present during the `build` phase so Vite can embed them. If Nixpacks does not pick up this file automatically, set the following platform variables:
+
+```
+NIXPACKS_NODE_VERSION=20
+NIXPACKS_BUILD_CMD=npm run build
+NIXPACKS_START_CMD=npm start
+```
+</Note>
+
+<Tip>
+On Railway, set environment variables under **Settings → Variables** before your first deploy. On Dokploy, set them in the **Environment** tab of your service.
+</Tip>
+
+---
+
+## HTTPS and reverse proxy
+
+The Docker image serves plain HTTP on port 80. Do not expose it directly to the internet without TLS termination. Place a reverse proxy such as **nginx**, **Caddy**, or **Traefik** in front of the container and configure HTTPS there.
+
+A minimal nginx reverse-proxy block for a host-level deployment:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name app.salesianos.example.com;
+
+    ssl_certificate     /etc/ssl/certs/salesianos.crt;
+    ssl_certificate_key /etc/ssl/private/salesianos.key;
+
+    location / {
+        proxy_pass         http://localhost:8080;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+<Warning>
+Ensure your backend API (`VITE_API_BASE`) is also reachable over HTTPS. Browsers block mixed-content requests — an HTTPS frontend cannot call an HTTP API endpoint.
+</Warning>

@@ -1,0 +1,118 @@
+---
+title: "Branding"
+description: "Customize the app name, primary color, and logo for your Salesianos FC instance."
+---
+
+The **Branding** page (`/admin/branding`) lets you personalize the look and identity of your Salesianos FC installation. Changes take effect globally for all users. Only users with the `admin` role can access this page.
+
+<Note>
+Each setting (app name, color, logo) is saved independently. Changing one does not affect the others.
+</Note>
+
+## App name
+
+The app name appears in:
+
+- The browser tab title
+- The header and footer throughout the interface
+- The login screen
+- Match display strings (e.g., "Salesianos FC vs Rival")
+
+**Default:** `Salesianos FC`
+
+To change it:
+
+1. Edit the text in the **Nombre del sistema** field. Maximum 120 characters.
+2. Click **Guardar nombre**.
+
+To revert to the default, click **Restaurar por defecto** next to the name field.
+
+<Tip>
+Keep the name short. It appears inline in match strings like "Salesianos FC vs Rival", so long names can look awkward in that context.
+</Tip>
+
+## Primary color
+
+The primary color controls the accent throughout the entire UI, including:
+
+- Buttons
+- Links
+- Badges
+- Other highlighted or interactive elements
+
+**Default:** `#006600`
+
+**Format:** Six-digit hex, e.g. `#006600`. The `#` prefix is required when saving.
+
+To change the primary color:
+
+1. Use the **color picker** or type a hex value directly in the text field next to it.
+2. The preview updates **immediately** in the UI as you change the value — no need to save first.
+3. When satisfied, click **Guardar color**.
+
+To revert to `#006600`, click **Restaurar por defecto**.
+
+### How the live preview works
+
+As you edit the color, the app writes the new value and derived shades directly to CSS custom properties on `<html>`:
+
+| CSS variable | Purpose |
+|---|---|
+| `--color-primary` | Base accent color |
+| `--color-primary-hover` | 15% darkened variant used on hover states |
+| `--color-primary-light` | 14% opacity variant used for backgrounds |
+| `--color-primary-focus` | 40% opacity variant used for focus rings |
+
+These changes are live only in your browser session. They are not persisted until you click **Guardar color**.
+
+<Warning>
+If you navigate away before saving, the preview color is discarded and the previously saved color is restored on the next page load.
+</Warning>
+
+## Logo
+
+The logo appears in the header and on the login screen. Uploading a new logo replaces the current one immediately.
+
+**Accepted formats:** JPEG, PNG, WebP
+
+To upload a logo:
+
+1. Click **Subir nuevo logo**.
+2. Select an image file from your device.
+3. The upload begins automatically. The new logo appears in the preview once the upload is complete.
+
+There is no separate save step for the logo — it is applied as soon as the upload finishes.
+
+<Note>
+There is no button to remove a logo and return to the default text logo. If you need to reset the logo, upload a new image that replicates the default appearance.
+</Note>
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/settings/branding` | Retrieve current branding settings. |
+| `PATCH` | `/api/settings/branding` | Update app name and/or primary color. |
+| `POST` | `/api/settings/logo` | Upload a new logo (multipart form data). |
+
+### Update branding request body
+
+You can send one or both fields in a single request:
+
+```json
+{
+  "primary_color": "#006600",
+  "app_name": "Salesianos FC"
+}
+```
+
+### Upload logo
+
+Send the image as `multipart/form-data`. The field name is the file itself (handled via `apiUpload` in the frontend).
+
+```http
+POST /api/settings/logo
+Content-Type: multipart/form-data
+
+<binary image data>
+```

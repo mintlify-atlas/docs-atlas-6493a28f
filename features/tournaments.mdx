@@ -1,0 +1,141 @@
+---
+title: "Tournaments"
+description: "Create and manage tournaments — multi-series competitions with rosters, match tracking, locations, and fee periods."
+---
+
+The Tournaments page shows tournament cards for a selected year. Each card lists the tournament's matches grouped by series, along with scores.
+
+## Tournament cards
+
+Each card shows:
+
+- Tournament name, season year badge, and total match count
+- Per-series match list with date, opponent, and score
+- Active/inactive toggle (admin / delegado)
+- Edit button (admin / delegado)
+
+### Filtering
+
+Use the toolbar filters to narrow the view:
+
+- **Año** — filter by `season_year`. Defaults to the current year. All years present in the data are available.
+- **Partidos por serie** — filter the matches shown inside each card to a specific series. The tournament cards themselves are not filtered.
+
+---
+
+## Tournament data fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `name` | string | Required. |
+| `season_year` | number | Required. Year the tournament takes place. |
+| `active` | boolean | Controls visibility in match creation dropdowns. |
+| `description` | string \| null | Optional free-text description. |
+| `start_month` | string (`YYYY-MM`) \| null | First month for fee period calculations. |
+| `end_month` | string (`YYYY-MM`) \| null | Last month for fee period calculations. |
+| `series_ids` | string[] | Series participating in the tournament. |
+| `roster_by_series` | `Record<string, string[]>` | Optional per-series player selection. See [Roster by series](#roster-by-series). |
+| `location.name` | string \| null | Location name. |
+| `location.map_url` | string \| null | Google Maps URL. |
+| `location.lat` | number \| null | Latitude. |
+| `location.lng` | number \| null | Longitude. |
+
+---
+
+## Creating a tournament
+
+<Steps>
+  <Step title="Open the create modal">
+    Click **Nuevo torneo**. Only admin and delegado users see this button.
+  </Step>
+  <Step title="Enter name and year">
+    **Nombre** is required. **Año** defaults to the current year.
+  </Step>
+  <Step title="Set fee period (optional)">
+    Enter **Mes inicio cuotas** and **Mes término cuotas** in `YYYY-MM` format. These define the range of monthly fee periods the treasury module uses for this tournament.
+  </Step>
+  <Step title="Select participating series">
+    Check one or more series. Only active series appear.
+  </Step>
+  <Step title="Set location (optional)">
+    Paste a Google Maps URL into the **URL Google Maps** field. The app automatically extracts the latitude and longitude from the URL. You can also click directly on the Mapbox map to place a pin.
+  </Step>
+  <Step title="Configure roster by series (optional)">
+    See [Roster by series](#roster-by-series) below.
+  </Step>
+  <Step title="Save">
+    Click **Crear**. The tournament is created via `POST /api/tournaments`.
+  </Step>
+</Steps>
+
+---
+
+## Location picker
+
+The location field supports two input methods:
+
+**Google Maps URL** — paste any `google.com/maps` or `maps.app.goo.gl` link. The parser attempts to extract coordinates from:
+- The `@lat,lng` segment in the path (e.g. `/@-33.45,-70.66,17z`)
+- Query parameters `q`, `query`, `destination`, or `ll`
+
+If extraction fails, a warning appears asking you to paste a longer URL that includes `@lat,lng`.
+
+**Mapbox map click** — if `VITE_MAPBOX_TOKEN` is set, an interactive Mapbox map renders below the URL field. Click anywhere on the map to set the pin. The coordinates display below the map.
+
+<Note>
+  The Mapbox map requires the `VITE_MAPBOX_TOKEN` environment variable to be configured in the frontend build.
+</Note>
+
+---
+
+## Roster by series
+
+By default, all active players in a series participate in a tournament for that series. You can restrict this by selecting a specific roster per series.
+
+<Steps>
+  <Step title="Select participating series">
+    Check at least one series in the **Series que participan** section. The roster panel becomes available.
+  </Step>
+  <Step title="Filter by series">
+    Use the **Filtrar por serie** dropdown in the roster panel to focus on one series at a time. Checkboxes are disabled when no series filter is active.
+  </Step>
+  <Step title="Select players">
+    Check individual players, or use **Seleccionar todos** / **Deseleccionar todos** for the filtered series.
+  </Step>
+</Steps>
+
+If no players are selected for a series, the tournament treats the entire series as the roster (implicit all-in).
+
+<Tip>
+  You must select a specific series in the roster filter before you can check or uncheck individual players. The checkboxes are disabled when the filter is set to "Seleccionados" (the default view showing all already-selected players across series).
+</Tip>
+
+---
+
+## Active/inactive toggle
+
+Each tournament card has an **Activo** switch (admin / delegado only). Inactive tournaments:
+
+- Do not appear in the match creation dropdown
+- Do not appear in the self-service payment modal for jugadores
+- Still appear on the Tournaments page and can be reactivated
+
+---
+
+## Roles
+
+| Action | admin | delegado | tesorero | jugador |
+|--------|-------|----------|----------|---------|
+| View tournaments | ✓ | ✓ | ✓ | ✓ |
+| Create / edit tournaments | ✓ | ✓ | — | — |
+| Toggle active | ✓ | ✓ | — | — |
+
+---
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/tournaments` | List all tournaments |
+| `POST` | `/api/tournaments` | Create a tournament |
+| `PATCH` | `/api/tournaments/:id` | Update a tournament (includes active toggle) |

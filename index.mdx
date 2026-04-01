@@ -1,97 +1,87 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Salesianos FC"
+description: "Complete management platform for amateur football clubs — players, matches, tournaments, treasury, and team administration in one place."
 ---
 
-## Setting up
+Salesianos FC is a web application built for managing your amateur football club. From scheduling matches and tracking player convocations to collecting membership fees and generating treasury reports, it brings every aspect of club management into a single, role-aware interface.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Set up the app and log in for the first time in minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Configure your environment variables and backend connection.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Players" icon="users" href="/features/players">
+    Manage your squad, positions, photos, and series assignments.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Matches" icon="calendar" href="/features/matches">
+    Schedule matches, send convocations, and track results.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What you can do
 
-Everything you need to create world-class documentation.
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="chart-line" href="/features/dashboard">
+    View KPIs, upcoming matches, fee collection rates, and birthday reminders.
+  </Card>
+  <Card title="Tournaments" icon="trophy" href="/features/tournaments">
+    Organise tournaments with multi-series rosters and location maps.
+  </Card>
+  <Card title="Treasury" icon="coins" href="/treasury/overview">
+    Define fee rules, validate player payments, and export reports.
+  </Card>
+  <Card title="Administration" icon="shield-halved" href="/admin/users-roles">
+    Manage user accounts, roles, branding, and audit logs.
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Getting started
 
-## Need inspiration?
+<Steps>
+  <Step title="Clone and install">
+    Clone the repository and install dependencies.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+    ```bash
+    git clone https://github.com/NoahSPA/salesianos_frontend.git
+    cd salesianos_frontend
+    npm install
+    ```
+  </Step>
+  <Step title="Configure environment">
+    Copy the example environment file and point it at your backend.
+
+    ```bash
+    cp .env.example .env
+    # Edit .env and set VITE_API_BASE to your backend URL
+    ```
+  </Step>
+  <Step title="Start the dev server">
+    Launch the Vite development server with hot reload.
+
+    ```bash
+    npm run dev
+    ```
+
+    The app is available at `http://localhost:5173`.
+  </Step>
+  <Step title="Log in">
+    Open the app in your browser and sign in with your admin credentials. Your backend must be running and reachable at the URL set in `VITE_API_BASE`.
+  </Step>
+</Steps>
+
+## Roles at a glance
+
+Salesianos FC uses four built-in roles that determine what each user can see and do.
+
+| Role | Capabilities |
+|------|-------------|
+| **admin** | Full access — players, matches, tournaments, treasury, users, branding, audit log |
+| **delegado** | Create and edit players, matches, tournaments, rivals, and series |
+| **tesorero** | Manage treasury: validate payments, define fee rules, export reports |
+| **jugador** | View their own profile, see upcoming matches, submit self-service payment registration |
+
+<Note>
+  Every protected route requires an active session. Users are automatically redirected to the login page when their session expires.
+</Note>

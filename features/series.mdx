@@ -1,0 +1,114 @@
+---
+title: "Series"
+description: "Manage series (divisions or categories) within the club — configure names, colors, delegates, and treasurers."
+---
+
+A **series** is a division or category within the club — for example "Primera", "Sub-17", or "Masters". Series are the primary organisational unit. Players belong to one or more series, matches are assigned to a series, and tournaments span one or more series.
+
+Series badges (coloured pills showing the series name) appear throughout the app on player cards, match cards, and the dashboard convocation cards.
+
+## Series card grid
+
+Each series card shows:
+
+- Name and optional short code
+- Coloured series badge
+- Active/inactive status toggle (admin only)
+- Edit button (admin only)
+- Delegate and treasurer display names
+- WhatsApp group link (if set)
+- Alphabetical list of all players assigned to that series, with dorsal number and active status
+
+---
+
+## Series data fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `name` | string | Required. |
+| `code` | string \| null | Optional short code (e.g. `P1`, `S17`). Shown in parentheses next to the name. |
+| `active` | boolean | Controls whether the series appears in dropdowns. |
+| `color` | string \| null | Hex colour (e.g. `#3B82F6`) for the series badge. Falls back to an automatic colour if not set. |
+| `whatsapp_group_url` | string \| null | Link to the WhatsApp group for this series. |
+| `delegate_user_id` | string \| null | User ID of the assigned delegate. |
+| `delegate_player_id` | string \| null | Player ID of the assigned delegate (alternative to a user). |
+| `treasurer_user_id` | string \| null | User ID of the assigned treasurer. |
+| `treasurer_player_id` | string \| null | Player ID of the assigned treasurer (alternative to a user). |
+
+---
+
+## Creating a series
+
+<Steps>
+  <Step title="Open the create modal">
+    Click **Nueva serie**. Only admin users see this button.
+  </Step>
+  <Step title="Enter name and optional code">
+    **Nombre** is required. **Código** is optional and used as a short identifier.
+  </Step>
+  <Step title="Pick a badge color">
+    Click the color picker to choose a hex colour for the series badge. This colour appears on every badge that references this series throughout the app. Leave it unset to use the default automatic colour.
+  </Step>
+  <Step title="Add WhatsApp link (optional)">
+    Paste the WhatsApp group invite URL. A clickable **WhatsApp** link appears on the series card.
+  </Step>
+  <Step title="Assign delegate and treasurer (optional)">
+    Both fields accept either a **user** (from the active user list) or a **player** (from the active player list). Use the grouped dropdown to select the appropriate type.
+  </Step>
+  <Step title="Save">
+    Click **Crear**. The series is created via `POST /api/series`.
+  </Step>
+</Steps>
+
+---
+
+## Color picker
+
+The color picker is a native `<input type="color">` element. The chosen hex value is stored in `color` and applied to all `SeriesBadge` components throughout the app (player cards, match cards, dashboard cards, etc.).
+
+To remove a colour and revert to the automatic default, click **Quitar color**.
+
+---
+
+## Assigning delegate and treasurer
+
+Each series can have a delegate and a treasurer. These are displayed on the series card and used elsewhere in the app (e.g. the treasury module). The assignment can be:
+
+- A **user** — selected from the active users list (`/api/auth/users`)
+- A **player** — selected from the active players list (`/api/players`)
+
+The value is stored as either `delegate_user_id` / `treasurer_user_id` (for users) or `delegate_player_id` / `treasurer_player_id` (for players). Only one of the pair is set at a time.
+
+<Note>
+  Only admin users can load the user list and manage series. If you are not an admin, the create and edit buttons are not visible.
+</Note>
+
+---
+
+## Active/inactive toggle
+
+The switch on each series card immediately calls `PATCH /api/series/:id` with `{ active: false }` (or `true`). Inactive series:
+
+- No longer appear in player assignment, match creation, or tournament dropdowns
+- Still appear on the Series page with an inactive label
+- Retain all their players and historical data
+
+---
+
+## Roles
+
+| Action | admin | delegado | tesorero | jugador |
+|--------|-------|----------|----------|---------|
+| View series | ✓ | ✓ | ✓ | ✓ |
+| Create / edit series | ✓ | — | — | — |
+| Toggle active | ✓ | — | — | — |
+
+---
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/series` | List all series |
+| `POST` | `/api/series` | Create a series |
+| `PATCH` | `/api/series/:id` | Update a series (includes active toggle) |

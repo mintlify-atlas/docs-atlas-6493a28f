@@ -1,0 +1,197 @@
+---
+title: "Players"
+description: "Manage the club's player roster — create, edit, filter, import, and export player records."
+---
+
+The Players page displays the full roster as a card grid alongside a soccer-field position map. Admins and delegados can create and edit players; jugadores see a read-only detail view.
+
+## Player card grid
+
+Each card shows:
+
+- Avatar (photo or initials fallback)
+- Full name and dorsal number (watermarked large in the background)
+- Primary series badge, plus secondary series badges if applicable
+- RUT
+- Primary and secondary positions in Spanish
+- Level stars (1–5)
+- Active/inactive toggle (admin / delegado only)
+
+Clicking the edit icon (or the eye icon for jugadores) opens the player detail modal.
+
+## Field position map
+
+The left column of the page shows a bird's-eye view of a soccer pitch. Each active player appears as a circular marker placed at the coordinates matching their **primary position**. Markers use the player's initials. Green markers are active players; grey markers are inactive or in-memoriam players.
+
+Clicking a marker on the field opens the same player modal as clicking the card.
+
+---
+
+## Filtering and search
+
+Use the toolbar above the grid to narrow the list:
+
+- **Buscar** — free-text search by name or RUT (400 ms debounce)
+- **Serie** — filter by series; only active series appear in the dropdown
+
+---
+
+## Player data fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `first_name` | string | Required |
+| `second_first_name` | string \| null | Optional |
+| `last_name` | string | Required |
+| `second_last_name` | string \| null | Optional |
+| `rut` | string | Required (unless `in_memoriam`). Validated with check-digit algorithm. |
+| `birth_date` | string (`YYYY-MM-DD`) | Required (unless `in_memoriam`) |
+| `phone` | string | Required (unless `in_memoriam`) |
+| `email` | string \| null | Optional |
+| `primary_series_id` | string | Required (unless `in_memoriam`). Must be one of the series in `series_ids`. |
+| `series_ids` | string[] | One or more series the player belongs to |
+| `positions` | string[] | Index 0 = primary, index 1 = secondary |
+| `level_stars` | number (1–5) | Player skill level |
+| `active` | boolean | Defaults to `true` |
+| `dorsal` | number \| null | Jersey number 1–99. Required when `in_memoriam = true`. |
+| `talla` | string \| null | Shirt size. One of `XS`, `S`, `M`, `L`, `XL`, `XXL`, `XXXL`. |
+| `in_memoriam` | boolean | Marks a deceased player. See [In memoriam](#in-memoriam) below. |
+| `notes` | string \| null | Free-text observations |
+| `avatar_url` / `avatar_file_id` | string \| null | Player photo |
+
+### Positions
+
+<Accordion title="Full position list">
+
+| Code | Spanish label | Group |
+|------|---------------|-------|
+| `gk` | Portero | Portero |
+| `rb` | Lateral derecho | Defensa |
+| `cb` | Central | Defensa |
+| `lb` | Lateral izquierdo | Defensa |
+| `rwb` | Carrilero derecho | Defensa |
+| `lwb` | Carrilero izquierdo | Defensa |
+| `dm` | Medio defensivo | Mediocampo |
+| `cm` | Medio centro | Mediocampo |
+| `am` | Medio ofensivo | Mediocampo |
+| `rw` | Extremo derecho | Ataque |
+| `lw` | Extremo izquierdo | Ataque |
+| `st` | Delantero centro | Ataque |
+| `cf` | Segundo delantero | Ataque |
+
+</Accordion>
+
+### Level stars
+
+<Accordion title="Level labels">
+
+| Stars | Label |
+|-------|-------|
+| 1 | Recién despegando — ¡las ganas cuentan! |
+| 2 | Ya sabe por dónde va la pelota |
+| 3 | Se defiende solo y hasta arma jugadas |
+| 4 | Lo buscan para el equipo — nivel crack |
+| 5 | MVP del domingo — leyenda del barrio |
+
+</Accordion>
+
+---
+
+## Creating a player
+
+<Steps>
+  <Step title="Open the create modal">
+    Click **Nuevo jugador**. The form defaults `level_stars` to 3 and `active` to `true`.
+  </Step>
+  <Step title="Fill in required fields">
+    Enter **Primer nombre**, **Primer apellido**, **RUT**, **Nacimiento**, **Teléfono**, select at least one series, choose a **Serie principal**, and pick a primary position.
+  </Step>
+  <Step title="Add optional fields">
+    Second given name, second surname, email, dorsal number, shirt size (`talla`), secondary position, and level stars are all optional.
+  </Step>
+  <Step title="Save">
+    Click **Crear**. The player is created via `POST /api/players` and the grid refreshes.
+  </Step>
+</Steps>
+
+<Tip>
+  After creating a player, open the edit modal and use the **Foto del jugador** upload control to add a profile photo via `POST /api/players/:id/avatar`.
+</Tip>
+
+---
+
+## In memoriam
+
+To record a deceased player, enable the **En memoria** toggle in the player form. In-memoriam mode:
+
+- Makes `dorsal` **required** (so the player is identifiable on historical records)
+- Makes `rut`, `birth_date`, `phone`, `email`, and `talla` optional
+- Automatically sets `active = false`
+- Renders the player card with a greyscale appearance
+
+---
+
+## Excel import
+
+Click **Cargar Jugadores** to bulk-import players from a `.xlsx` file.
+
+<Steps>
+  <Step title="Select series">
+    Choose the series to assign imported players to.
+  </Step>
+  <Step title="Upload the file">
+    Select a `.xlsx` file. Each row should represent one player. The importer uses the column headers defined in the template.
+  </Step>
+  <Step title="Review results">
+    After upload the modal shows counts of inserted, updated, and skipped rows, plus any per-row errors with field and value details.
+  </Step>
+</Steps>
+
+The import calls `POST /api/players/import/excel` with the file attached as `multipart/form-data`.
+
+---
+
+## Export to Excel
+
+Click **Exportar lista** to download the current filtered player list as a `.xlsx` file. In-memoriam players are excluded from the export.
+
+The export always includes: first name, second given name, first surname, second surname, and dorsal number. You can toggle additional optional columns:
+
+| Column id | Label |
+|-----------|-------|
+| `rut` | RUT |
+| `nacimiento` | Nacimiento |
+| `telefono` | Teléfono |
+| `email` | Email |
+| `serie` | Serie |
+| `posicion_principal` | Posición principal |
+| `posicion_secundaria` | Posición secundaria |
+| `talla` | Talla |
+| `nivel` | Nivel |
+| `activo` | Activo |
+| `en_memoria` | En memoria |
+| `observaciones` | Observaciones |
+
+---
+
+## Roles
+
+| Action | admin | delegado | tesorero | jugador |
+|--------|-------|----------|----------|---------|
+| View player cards | ✓ | ✓ | ✓ | ✓ |
+| View read-only detail | ✓ | ✓ | ✓ | ✓ |
+| Create / edit players | ✓ | ✓ | — | — |
+| Toggle active status | ✓ | ✓ | — | — |
+| Import / export Excel | ✓ | ✓ | — | — |
+
+---
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/players` | List players (supports `q`, `series_id`, `active` query params) |
+| `POST` | `/api/players` | Create a player |
+| `PATCH` | `/api/players/:id` | Update a player |
+| `POST` | `/api/players/:id/avatar` | Upload player avatar |
+| `POST` | `/api/players/import/excel` | Bulk import from `.xlsx` |

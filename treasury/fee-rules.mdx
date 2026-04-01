@@ -1,0 +1,163 @@
+---
+title: "Fee rules"
+description: "Define monthly fee amounts per tournament, series, or individual player."
+---
+
+## What fee rules are
+
+A fee rule defines how much a player owes per month. Rules are always scoped to a **tournament**, and within that tournament they can apply to all players (general), to a specific series, or to a specific individual player.
+
+When the system needs to determine a player's monthly fee, it resolves the applicable rule using the hierarchy below and uses that amount to generate the fee charge for the month.
+
+## Fee rule hierarchy
+
+The system applies the most specific rule that matches the player:
+
+1. **Player-level** (`scope: 'player'`) — overrides everything. Use this to set a custom fee for one player.
+2. **Series-level** (`scope: 'series'`) — overrides the general rule for all players in a series.
+3. **General** (`scope: 'general'`) — baseline fee for all players in the tournament.
+
+The `GET /api/fees/player-fee-by-rut` and `GET /api/fees/player-fee` endpoints reflect this resolution and return both the resolved `fee_amount` and the `fee_source` that supplied it.
+
+| `fee_source` value | Meaning |
+|---|---|
+| `player` | A player-level rule applied |
+| `series` | A series-level rule applied |
+| `general` | The general tournament rule applied |
+
+<Tip>
+  When registering a payment, the fee suggestion shown in the form is fetched from `GET /api/fees/player-fee-by-rut` (dashboard self-register) or `GET /api/fees/player-fee` (treasury register). The suggested amount pre-fills the **Monto** field but can be overridden.
+</Tip>
+
+## Fee rule fields
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Unique rule identifier |
+| `scope` | `'general' \| 'series' \| 'player'` | Scope of the rule |
+| `scope_id` | `string \| null` | Series ID or player ID; `null` for general rules |
+| `tournament_id` | `string \| null` | Tournament this rule belongs to |
+| `amount` | `number` | Monthly fee amount in CLP |
+| `currency` | `string` | Always `CLP` |
+| `active` | `boolean` | Whether the rule is currently active |
+| `effective_from` | `string` | Date from which the rule applies (ISO date, e.g. `2026-01-01`) |
+| `effective_to` | `string \| null` | Date until which the rule applies; `null` means indefinite |
+
+## Creating a fee rule
+
+Only `tesorero` and `admin` users can create, edit, or delete fee rules.
+
+<Steps>
+  <Step title="Open the Reglas tab">
+    Navigate to the treasury module and click the **Reglas** tab. Existing rules are displayed sorted by scope (general → series → player).
+  </Step>
+  <Step title="Click Nueva regla">
+    Click the **Nueva regla** button in the top-right corner of the tab. A modal opens.
+  </Step>
+  <Step title="Fill in the rule details">
+    Select the **Torneo** the rule applies to. This field is required.
+
+    Choose the **Alcance** (scope):
+    - **General** — applies to all players in the tournament
+    - **Por serie** — select a specific series
+    - **Por jugador** — select a specific player
+
+    Enter the **Monto mensual (CLP)** and the **Vigente desde** date. Optionally set a **Vigente hasta** date; leave blank for an open-ended rule.
+  </Step>
+  <Step title="Save">
+    Click **Crear**. The rule appears in the list immediately.
+  </Step>
+</Steps>
+
+The API request for creating a new rule:
+
+```json
+POST /api/fees/rules
+{
+  "scope": "series",
+  "scope_id": "<series_id>",
+  "tournament_id": "<tournament_id>",
+  "amount": 15000,
+  "currency": "CLP",
+  "effective_from": "2026-01-01",
+  "effective_to": null
+}
+```
+
+To edit an existing rule, send a `PATCH` request. You can update `tournament_id`, `amount`, `effective_from`, and `effective_to`.
+
+```json
+PATCH /api/fees/rules/:id
+{
+  "amount": 18000,
+  "effective_from": "2026-03-01",
+  "effective_to": null
+}
+```
+
+<Warning>
+  Deleting a rule (`DELETE /api/fees/rules/:id`) does not retroactively remove fee charges that were already generated for past months. It only prevents new charges from being generated using that rule.
+</Warning>
+
+## Monthly fee generation
+
+Fee charges for a given month are generated automatically when the treasury module or dashboard is consulted. The system inspects the active rules for each player and creates charge records for months that do not yet have one.
+
+The audit log records this as the `fees_generated_month` action. Administrators can see this in the audit log when charges are generated.
+
+<Note>
+  If the **Pendiente** total shows zero and you expect outstanding debt, verify that the fee rule's `effective_from` date covers the first month you want to charge (e.g. `2026-01-01` to include January 2026). Also confirm that the players have the correct series assigned.
+</Note>
+
+## Fee status per player
+
+The **Estados** tab and the dashboard both surface per-player fee status derived from `GET /api/fees/status`.
+
+| Status code | Label | Meaning |
+|---|---|---|
+| `al_dia` | Al día | All charges up to the current month are paid |
+| `pendiente` | Pendiente | One or more charges are outstanding but not severely overdue |
+| `atrasado` | Atrasado | Player is significantly behind on payments (3 or more months pending) |
+
+Each player record in the status response also includes:
+
+- `fee_amount` / `fee_source` — the resolved monthly fee and which rule provided it
+- `total_pending` — total outstanding amount in CLP
+- `pending_months_count` — number of months with unpaid charges
+- `credit_balance` — any overpayment credit available to offset debt
+- `total_contributed` / `paid_months_count` — total paid and count of fully paid months
+- `tournament_debt_pending` — outstanding tournament-specific debt
+- `debt_block_active` — whether a manual debt block is in effect for the selected tournament
+
+## Debt blocks
+
+When a tournament filter is active, tesorero and admin users can apply a **debt block** to a player with outstanding tournament debt. A blocked player cannot confirm convocation invitations.
+
+- To block: click the lock icon on the player card in the **Estados** tab.
+- To release: click the unlock icon, or check **Quitar bloqueo al validar este pago** in the payment validation modal.
+
+The block is scoped to a specific tournament and player combination.
+
+## How the dashboard uses fee rules
+
+The dashboard aggregates fee data for `tesorero` and `admin` users and shows:
+
+- **Total recaudado / pendiente** from `GET /api/fees/summary-by-period`
+- **Collection rate** (recaudado ÷ expected total)
+- **Debtors count** (players with `pendiente` or `atrasado` status)
+- **Top debtors list** sorted by `total_pending` descending
+
+These figures are directly driven by the fee rules you configure. Setting accurate `effective_from` dates and the correct scope ensures the dashboard reflects real club finances.
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/fees/rules` | List fee rules; supports `tournament_id` query param |
+| `POST` | `/api/fees/rules` | Create a new fee rule |
+| `PATCH` | `/api/fees/rules/:id` | Update an existing fee rule |
+| `DELETE` | `/api/fees/rules/:id` | Delete a fee rule |
+| `GET` | `/api/fees/status` | Per-player fee status; supports `series_id`, `tournament_id` |
+| `GET` | `/api/fees/summary-by-period` | Aggregated fee KPIs (used by dashboard) |
+| `GET` | `/api/fees/player-fee-by-rut` | Resolved fee for a player identified by RUT |
+| `GET` | `/api/fees/player-fee` | Resolved fee for a player identified by player ID |
